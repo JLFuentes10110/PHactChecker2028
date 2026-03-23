@@ -1,0 +1,369 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --red:#E24B4A;--red-light:#FCEBEB;--red-dark:#501313;
+    --green:#639922;--green-light:#EAF3DE;
+    --amber:#BA7517;--amber-light:#FAEEDA;
+    --blue:#185FA5;--blue-light:#E6F1FB;
+    --gray:#5F5E5A;--gray-light:#F1EFE8;
+    --coral:#D85A30;--coral-light:#FAECE7;
+    --purple:#534AB7;--purple-light:#EEEDFE;
+    --ink:#1a1a18;--muted:#888780;--border:#e8e5e0;
+    --bg:#faf9f7;--surface:#ffffff;
+    --font-display:'Syne',sans-serif;
+    --font-body:'DM Sans',sans-serif;
+    --font-mono:'DM Mono',monospace;
+  }
+  body{font-family:var(--font-body);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+  .shell{display:flex;height:600px;overflow:hidden;border:0.5px solid var(--border);border-radius:12px;background:var(--surface)}
+  /* Sidebar */
+  .sidebar{width:200px;flex-shrink:0;background:#0f0f0d;display:flex;flex-direction:column;padding:0}
+  .logo{padding:20px 16px 16px;border-bottom:0.5px solid #2a2a28}
+  .logo-tag{font-family:var(--font-mono);font-size:10px;color:#666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px}
+  .logo-name{font-family:var(--font-display);font-size:16px;font-weight:700;color:#fff;letter-spacing:-0.02em}
+  .logo-year{color:var(--red);font-size:16px}
+  .nav{flex:1;padding:12px 0}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:13px;color:#888;font-family:var(--font-body);font-weight:400;transition:all 0.15s;border-left:2px solid transparent}
+  .nav-item:hover{color:#ddd;background:#1a1a18}
+  .nav-item.active{color:#fff;background:#1a1a18;border-left-color:var(--red)}
+  .nav-icon{width:16px;text-align:center;font-size:14px}
+  .nav-section{font-family:var(--font-mono);font-size:9px;color:#444;letter-spacing:0.1em;text-transform:uppercase;padding:16px 16px 4px}
+  .sidebar-footer{padding:12px 16px;border-top:0.5px solid #2a2a28}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:#639922;display:inline-block;margin-right:6px}
+  .status-text{font-size:11px;color:#555;font-family:var(--font-mono)}
+  /* Main */
+  .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+  .topbar{padding:14px 20px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);position:sticky;top:0;z-index:10}
+  .topbar-title{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:-0.01em}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+  .badge{font-size:10px;font-family:var(--font-mono);padding:3px 8px;border-radius:4px;font-weight:500}
+  .badge-phase{background:#0f0f0d;color:#888;border:0.5px solid #333}
+  .btn{border:0.5px solid var(--border);background:var(--surface);color:var(--ink);font-family:var(--font-body);font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:500}
+  .btn-primary{background:var(--red);color:#fff;border-color:var(--red)}
+  .content{padding:20px;flex:1}
+  /* Pages */
+  .page{display:none}
+  .page.active{display:block}
+  /* Dashboard */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+  .metric{background:var(--gray-light);border-radius:8px;padding:14px}
+  .metric-label{font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em}
+  .metric-value{font-size:24px;font-weight:500;font-family:var(--font-display);letter-spacing:-0.02em}
+  .metric-delta{font-size:11px;color:var(--green);margin-top:2px}
+  .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .section-title{font-family:var(--font-display);font-size:13px;font-weight:700;letter-spacing:-0.01em}
+  .verdict-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;margin-bottom:20px}
+  .vb-seg{height:100%;border-radius:2px}
+  .feed-item{border:0.5px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--surface)}
+  .feed-item:hover{border-color:#ccc}
+  .feed-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .source-badge{font-size:10px;font-family:var(--font-mono);padding:2px 7px;border-radius:4px;font-weight:500}
+  .src-facebook{background:#dce8ff;color:#185FA5}
+  .src-tiktok{background:#ffe8f0;color:#993556}
+  .src-twitter{background:#e0f0ff;color:#0f6494}
+  .src-news{background:var(--gray-light);color:var(--gray)}
+  .src-youtube{background:#ffe8e8;color:var(--red)}
+  .src-manual{background:var(--purple-light);color:var(--purple)}
+  .lang-tag{font-size:10px;font-family:var(--font-mono);padding:2px 6px;border-radius:3px;background:#f0ede8;color:var(--muted)}
+  .feed-text{font-size:13px;line-height:1.5;color:var(--ink);margin-bottom:10px}
+  .verdict-chip{font-size:10px;font-family:var(--font-mono);font-weight:500;padding:3px 8px;border-radius:4px}
+  .v-true{background:var(--green-light);color:#27500A}
+  .v-mostly_true{background:#EAF3DE;color:#3B6D11}
+  .v-misleading{background:var(--amber-light);color:#633806}
+  .v-false{background:var(--red-light);color:var(--red-dark)}
+  .v-unverifiable{background:var(--gray-light);color:var(--gray)}
+  .v-credit_grab{background:var(--coral-light);color:#4A1B0C}
+  .v-pending{background:#f0ede8;color:#aaa}
+  .conf-bar{flex:1;height:4px;background:#eee;border-radius:2px;overflow:hidden;max-width:80px}
+  .conf-fill{height:100%;border-radius:2px}
+  .feed-footer{display:flex;align-items:center;gap:8px}
+  /* Search */
+  .search-wrap{position:relative;margin-bottom:16px}
+  .search-input{width:100%;padding:10px 14px 10px 36px;border:0.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13px;background:var(--surface);outline:none;color:var(--ink)}
+  .search-input:focus{border-color:#aaa}
+  .search-ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
+  .filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .filter-btn{font-size:11px;font-family:var(--font-mono);padding:5px 10px;border-radius:5px;border:0.5px solid var(--border);background:var(--surface);cursor:pointer;color:var(--muted)}
+  .filter-btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  /* Admin */
+  .table-wrap{border:0.5px solid var(--border);border-radius:8px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{background:#f7f5f2;padding:9px 12px;text-align:left;font-weight:500;font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);border-bottom:0.5px solid var(--border)}
+  td{padding:10px 12px;border-bottom:0.5px solid var(--border);color:var(--ink);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#faf9f7}
+  .id-mono{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+  .action-btn{font-size:10px;font-family:var(--font-mono);padding:3px 8px;border-radius:4px;border:0.5px solid var(--border);background:var(--surface);cursor:pointer;color:var(--ink);margin-right:4px}
+  .action-btn:hover{background:var(--gray-light)}
+  /* Stat chart */
+  .mini-chart{display:flex;align-items:flex-end;gap:3px;height:48px;margin-top:8px}
+  .bar{flex:1;border-radius:3px 3px 0 0;min-height:4px;background:var(--red);opacity:0.7}
+  /* Submit form */
+  .form-group{margin-bottom:14px}
+  .form-label{font-size:11px;font-family:var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;display:block}
+  .form-input{width:100%;padding:9px 12px;border:0.5px solid var(--border);border-radius:6px;font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--surface);outline:none}
+  .form-input:focus{border-color:#aaa}
+  textarea.form-input{resize:vertical;min-height:80px}
+  select.form-input{cursor:pointer}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .submit-result{background:var(--green-light);border:0.5px solid #C0DD97;border-radius:6px;padding:10px 14px;font-size:12px;color:#27500A;font-family:var(--font-mono);margin-top:12px;display:none}
+</style>
+
+<div class="shell">
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-tag">ph-fc</div>
+      <div class="logo-name">TamaKaya<span class="logo-year">'28</span></div>
+    </div>
+    <div class="nav">
+      <div class="nav-item active" onclick="nav(this,'dash')"><span class="nav-icon">▦</span> Dashboard</div>
+      <div class="nav-item" onclick="nav(this,'feed')"><span class="nav-icon">◈</span> Public Feed</div>
+      <div class="nav-item" onclick="nav(this,'search')"><span class="nav-icon">○</span> Claim Search</div>
+      <div class="nav-section">Admin</div>
+      <div class="nav-item" onclick="nav(this,'admin')"><span class="nav-icon">≡</span> Moderation</div>
+      <div class="nav-item" onclick="nav(this,'submit')"><span class="nav-icon">+</span> Submit Claim</div>
+    </div>
+    <div class="sidebar-footer">
+      <span class="status-dot"></span>
+      <span class="status-text">API live · v1.0.0</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- DASHBOARD -->
+    <div id="page-dash" class="page active">
+      <div class="topbar">
+        <span class="topbar-title">Overview</span>
+        <div class="topbar-right">
+          <span class="badge badge-phase">Phase 1 MVP</span>
+          <button class="btn">Export CSV</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="metrics">
+          <div class="metric"><div class="metric-label">Total Claims</div><div class="metric-value">1,284</div><div class="metric-delta">↑ 38 today</div></div>
+          <div class="metric"><div class="metric-label">Verified</div><div class="metric-value">847</div><div class="metric-delta">↑ 66%</div></div>
+          <div class="metric"><div class="metric-label">False / Misinfo</div><div class="metric-value" style="color:var(--red)">312</div><div class="metric-delta" style="color:var(--red)">↑ 24 this week</div></div>
+          <div class="metric"><div class="metric-label">Credit Grabs</div><div class="metric-value" style="color:var(--coral)">89</div><div class="metric-delta" style="color:var(--amber)">↑ 11 this week</div></div>
+        </div>
+
+        <div class="section-head"><span class="section-title">Verdict distribution</span><span style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">all time</span></div>
+        <div class="verdict-bar">
+          <div class="vb-seg" style="width:24%;background:#639922"></div>
+          <div class="vb-seg" style="width:18%;background:#97C459"></div>
+          <div class="vb-seg" style="width:14%;background:#BA7517"></div>
+          <div class="vb-seg" style="width:24%;background:#E24B4A"></div>
+          <div class="vb-seg" style="width:7%;background:#D85A30"></div>
+          <div class="vb-seg" style="width:13%;background:#B4B2A9"></div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--muted)"><span style="color:#639922">■</span> True 24%</span>
+          <span style="font-size:11px;color:var(--muted)"><span style="color:#97C459">■</span> Mostly true 18%</span>
+          <span style="font-size:11px;color:var(--muted)"><span style="color:#BA7517">■</span> Misleading 14%</span>
+          <span style="font-size:11px;color:var(--muted)"><span style="color:#E24B4A">■</span> False 24%</span>
+          <span style="font-size:11px;color:var(--muted)"><span style="color:#D85A30">■</span> Credit grab 7%</span>
+          <span style="font-size:11px;color:var(--muted)"><span style="color:#B4B2A9">■</span> Unverifiable 13%</span>
+        </div>
+
+        <div class="section-head"><span class="section-title">Claims volume — last 7 days</span></div>
+        <div class="mini-chart">
+          <div class="bar" style="height:40%"></div><div class="bar" style="height:55%"></div>
+          <div class="bar" style="height:38%"></div><div class="bar" style="height:72%"></div>
+          <div class="bar" style="height:60%"></div><div class="bar" style="height:88%"></div>
+          <div class="bar" style="height:100%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Mon</span>
+          <span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Tue</span>
+          <span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Wed</span>
+          <span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Thu</span>
+          <span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Fri</span>
+          <span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Sat</span>
+          <span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">Sun</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PUBLIC FEED -->
+    <div id="page-feed" class="page">
+      <div class="topbar">
+        <span class="topbar-title">Public Fact-Check Feed</span>
+        <div class="topbar-right"><button class="btn">Share feed</button></div>
+      </div>
+      <div class="content">
+        <div id="feed-list"></div>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div id="page-search" class="page">
+      <div class="topbar">
+        <span class="topbar-title">Claim Search</span>
+      </div>
+      <div class="content">
+        <div class="search-wrap">
+          <span class="search-ico">○</span>
+          <input class="search-input" id="search-q" placeholder="Search claims in Filipino or English…" oninput="doSearch()">
+        </div>
+        <div class="filters">
+          <button class="filter-btn on" onclick="toggleFilter(this,'all')">All</button>
+          <button class="filter-btn" onclick="toggleFilter(this,'false')">False</button>
+          <button class="filter-btn" onclick="toggleFilter(this,'misleading')">Misleading</button>
+          <button class="filter-btn" onclick="toggleFilter(this,'credit_grab')">Credit grab</button>
+          <button class="filter-btn" onclick="toggleFilter(this,'true')">True</button>
+          <button class="filter-btn" onclick="toggleFilter(this,'facebook')">Facebook</button>
+          <button class="filter-btn" onclick="toggleFilter(this,'tiktok')">TikTok</button>
+        </div>
+        <div id="search-results"></div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="page-admin" class="page">
+      <div class="topbar">
+        <span class="topbar-title">Moderation Panel</span>
+        <div class="topbar-right">
+          <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">4 pending review</span>
+          <button class="btn btn-primary">Bulk verdict</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Claim ID</th><th>Source</th><th>Language</th><th>Excerpt</th><th>Status</th><th>Verdict</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div id="page-submit" class="page">
+      <div class="topbar">
+        <span class="topbar-title">Submit Claim</span>
+      </div>
+      <div class="content">
+        <div style="max-width:520px">
+          <div class="form-group">
+            <label class="form-label">Raw text / claim</label>
+            <textarea class="form-input" id="f-text" placeholder="Paste the claim text in Filipino or English…"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Source platform</label>
+              <select class="form-input" id="f-source">
+                <option value="manual">Manual entry</option>
+                <option value="facebook">Facebook</option>
+                <option value="twitter">Twitter / X</option>
+                <option value="tiktok">TikTok</option>
+                <option value="youtube">YouTube</option>
+                <option value="news">News</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Language</label>
+              <select class="form-input" id="f-lang">
+                <option value="tl">Tagalog (tl)</option>
+                <option value="en">English (en)</option>
+                <option value="ceb">Cebuano (ceb)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Source URL (optional)</label>
+            <input class="form-input" id="f-url" placeholder="https://…">
+          </div>
+          <button class="btn btn-primary" onclick="submitClaim()" style="width:100%;padding:10px">Submit to API →</button>
+          <div class="submit-result" id="submit-result"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLAIMS=[
+  {id:"a1b2",text:"Ang gobyerno ay nagbigay ng libreng bigas sa lahat ng mahihirap na pamilya sa buong Pilipinas noong nakaraang buwan.",source:"facebook",lang:"tl",status:"done",verdict:"misleading",conf:0.71,ts:"2h ago"},
+  {id:"c3d4",text:"The incumbent senator authored the Free Internet Act and personally funded 500 public Wi-Fi hubs across Mindanao.",source:"tiktok",lang:"en",status:"done",verdict:"credit_grab",conf:0.88,ts:"5h ago"},
+  {id:"e5f6",text:"Napatunayang totoo na ang bagong trabaho na nilikha ng administrasyon ay umabot na sa 2 milyong katao ngayong taon.",source:"news",lang:"tl",status:"done",verdict:"mostly_true",conf:0.74,ts:"8h ago"},
+  {id:"g7h8",text:"COVID-19 vaccines caused more deaths than the virus itself according to a new WHO report.",source:"facebook",lang:"en",status:"done",verdict:"false",conf:0.97,ts:"12h ago"},
+  {id:"i9j0",text:"Ang presyo ng bigas ay bumaba ng 30% sa ilalim ng kasalukuyang administrasyon.",source:"twitter",lang:"tl",status:"pending",verdict:"pending",conf:0,ts:"1d ago"},
+  {id:"k1l2",text:"The local government built 1,200 new classrooms in public schools last quarter, ahead of the DepEd target.",source:"news",lang:"en",status:"done",verdict:"true",conf:0.91,ts:"1d ago"},
+];
+
+function verdictChip(v){return`<span class="verdict-chip v-${v}">${v.replace('_',' ')}</span>`}
+function sourceBadge(s){return`<span class="source-badge src-${s}">${s}</span>`}
+function confBar(c,v){
+  const colors={true:'#639922',mostly_true:'#97C459',misleading:'#BA7517',false:'#E24B4A',credit_grab:'#D85A30',unverifiable:'#B4B2A9',pending:'#ddd'};
+  return`<div class="conf-bar"><div class="conf-fill" style="width:${Math.round(c*100)}%;background:${colors[v]||'#ddd'}"></div></div><span style="font-size:10px;font-family:var(--font-mono);color:var(--muted)">${Math.round(c*100)}%</span>`;
+}
+
+function renderFeed(){
+  const el=document.getElementById('feed-list');
+  el.innerHTML=CLAIMS.filter(c=>c.status==='done').map(c=>`
+    <div class="feed-item">
+      <div class="feed-meta">${sourceBadge(c.source)}<span class="lang-tag">${c.lang}</span><span style="font-size:11px;color:var(--muted);margin-left:auto;font-family:var(--font-mono)">${c.ts}</span></div>
+      <div class="feed-text">${c.text}</div>
+      <div class="feed-footer">${verdictChip(c.verdict)}${confBar(c.conf,c.verdict)}</div>
+    </div>`).join('');
+}
+
+function renderSearch(q='',filter='all'){
+  const el=document.getElementById('search-results');
+  let list=CLAIMS;
+  if(q) list=list.filter(c=>c.text.toLowerCase().includes(q.toLowerCase()));
+  if(filter!=='all') list=list.filter(c=>c.verdict===filter||c.source===filter);
+  if(!list.length){el.innerHTML='<p style="color:var(--muted);font-size:13px;padding:20px 0">No claims found.</p>';return;}
+  el.innerHTML=list.map(c=>`
+    <div class="feed-item">
+      <div class="feed-meta">${sourceBadge(c.source)}<span class="lang-tag">${c.lang}</span><span class="id-mono" style="margin-left:auto">#${c.id}</span></div>
+      <div class="feed-text">${c.text}</div>
+      <div class="feed-footer">${verdictChip(c.verdict)}${confBar(c.conf,c.verdict)}</div>
+    </div>`).join('');
+}
+
+function renderAdmin(){
+  const el=document.getElementById('admin-table');
+  el.innerHTML=CLAIMS.map(c=>`<tr>
+    <td class="id-mono">#${c.id}</td>
+    <td>${sourceBadge(c.source)}</td>
+    <td><span class="lang-tag">${c.lang}</span></td>
+    <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px">${c.text.slice(0,55)}…</td>
+    <td><span class="verdict-chip v-${c.status==='pending'?'pending':c.status}">${c.status}</span></td>
+    <td>${c.verdict!=='pending'?verdictChip(c.verdict):'<span style="color:#ccc;font-size:11px">—</span>'}</td>
+    <td><button class="action-btn">Review</button><button class="action-btn">Override</button></td>
+  </tr>`).join('');
+}
+
+let currentFilter='all';
+function toggleFilter(btn,f){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');currentFilter=f;
+  doSearch();
+}
+function doSearch(){renderSearch(document.getElementById('search-q').value,currentFilter);}
+
+function nav(el,page){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+}
+
+function submitClaim(){
+  const text=document.getElementById('f-text').value.trim();
+  if(!text)return;
+  const res=document.getElementById('submit-result');
+  res.style.display='block';
+  res.textContent='✓ Claim submitted · POST /api/v1/claims · status: pending · id: '+Math.random().toString(36).slice(2,8);
+  setTimeout(()=>{res.style.display='none';document.getElementById('f-text').value='';},4000);
+}
+
+renderFeed();renderSearch();renderAdmin();
+</script>

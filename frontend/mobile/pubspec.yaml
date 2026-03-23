@@ -1,0 +1,36 @@
+name: ph_fc_2028
+description: TamaKaya'28 — Fact-Check & Credibility Tagger for the 2028 Philippine Elections
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.1
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Custom fonts — download from Google Fonts and place in assets/fonts/
+  fonts:
+    - family: Syne
+      fonts:
+        - asset: assets/fonts/Syne-Regular.ttf
+        - asset: assets/fonts/Syne-Bold.ttf   weight: 700
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans-Regular.ttf
+        - asset: assets/fonts/DMSans-Medium.ttf  weight: 500
+    - family: DMMono
+      fonts:
+        - asset: assets/fonts/DMMono-Regular.ttf
+        - asset: assets/fonts/DMMono-Medium.ttf  weight: 500

@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --red: #E24B4A;
+  --red-light: #FCEBEB;
+  --green: #639922;
+  --amber: #BA7517;
+  --coral: #D85A30;
+  --gray: #5F5E5A;
+}
+
+.font-display { font-family: 'Syne', sans-serif; }
+.font-mono { font-family: 'DM Mono', monospace; }
+.font-body { font-family: 'DM Sans', sans-serif; }

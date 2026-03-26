@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────
 //  PH-FC-2028 · Dashboard page
 // ─────────────────────────────────────────────
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { claimsApi, verdictsApi, type Claim, type Verdict } from "../services/api";
 
 interface Stats {
@@ -52,25 +52,39 @@ export default function DashboardPage() {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [verdicts, setVerdicts] = useState<Verdict[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pollId, setPollId] = useState<number | null>(null); 
+
+const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const c = await claimsApi.list(0, 100);
+      setClaims(c);
+      const vResults = await Promise.allSettled(
+        c.slice(0, 20).map((cl) => verdictsApi.forClaim(cl.id))
+      );
+      const allVerdicts = vResults.flatMap((r) =>
+        r.status === "fulfilled" ? r.value : []
+      );
+      setVerdicts(allVerdicts);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const c = await claimsApi.list(0, 100);
-        setClaims(c);
-        // fetch verdicts for each claim (in parallel, capped)
-        const vResults = await Promise.allSettled(
-          c.slice(0, 20).map((cl) => verdictsApi.forClaim(cl.id))
-        );
-        const allVerdicts = vResults.flatMap((r) =>
-          r.status === "fulfilled" ? r.value : []
-        );
-        setVerdicts(allVerdicts);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    loadData();
+
+    const id = setInterval(() => {
+      loadData();
+    }, 10000); // 10s
+
+    setPollId(id);
+
+    return () => {
+      if (pollId) clearInterval(pollId);
+      clearInterval(id);
+    };
+  }, [loadData]); 
 
   const stats = computeStats(claims, verdicts);
   const total = Object.values(stats.byVerdict).reduce((a, b) => a + b, 0) || 1;

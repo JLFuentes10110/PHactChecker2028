@@ -1,45 +1,40 @@
-from pydantic import BaseModel, field_validator
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 from datetime import datetime
-from app.models.claim import ClaimStatus, ClaimSource
+from typing import Optional, List, Literal
+from app.models.claim import ClaimSource, ClaimStatus
+from app.models.verdict import VerdictTag
 
+# --- VERDICT SCHEMAS ---
+class VerdictRead(BaseModel):
+    id: UUID
+    claim_id: UUID
+    tag: VerdictTag
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    explanation: Optional[str]
+    sources: Optional[str]  # Or List[str] if you prefer parsing it here
+    bias_note: Optional[str] = None # 👈 NEW: Shows source credibility analysis
+    
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# --- CLAIM SCHEMAS ---
 class ClaimCreate(BaseModel):
     raw_text: str
-    source: str  # Changed from ClaimSource to str
+    source: ClaimSource
     source_url: Optional[str] = None
-    language: Optional[str] = "tl"
-    
-    @field_validator('source')
-    @classmethod
-    def normalize_source(cls, v):
-        """Convert source string to lowercase and validate against enum."""
-        if isinstance(v, str):
-            # Convert to lowercase
-            v_lower = v.lower()
-            # Check if it's a valid source
-            valid_sources = [s.value for s in ClaimSource]
-            if v_lower not in valid_sources:
-                raise ValueError(f"Invalid source. Must be one of: {valid_sources}")
-            # Return the enum value directly
-            return ClaimSource(v_lower)
-        return v
-    
-    @field_validator('language')
-    @classmethod
-    def validate_language(cls, v):
-        """Ensure language is valid."""
-        if v and v not in ['tl', 'en']:
-            raise ValueError("Language must be 'tl' or 'en'")
-        return v
+    language: Literal["en", "tl"] = "en"
 
 class ClaimRead(BaseModel):
     id: UUID
     raw_text: str
     source: ClaimSource
-    source_url: Optional[str] = None
+    source_url: Optional[str]
     language: str
     status: ClaimStatus
     created_at: datetime
+    updated_at: Optional[datetime]
+    verdict: Optional[VerdictRead] = None 
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)

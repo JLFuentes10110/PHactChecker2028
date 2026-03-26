@@ -2,19 +2,18 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 from app.core.database import Base, get_db
 from app.main import app
 import os
 from dotenv import load_dotenv
 
-# Load test env instead of the default .env
 load_dotenv(".env.test", override=True)
 
 TEST_DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Separate engine pointing at your local test DB
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+# NullPool avoids connection reuse issues across async tests
+test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 
 TestSessionLocal = async_sessionmaker(
     test_engine,
@@ -24,7 +23,6 @@ TestSessionLocal = async_sessionmaker(
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_db():
-    """Create all tables before tests, drop after."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -33,14 +31,13 @@ async def setup_db():
 
 @pytest_asyncio.fixture()
 async def db_session():
-    """Fresh session per test, rolls back after."""
+    """Each test gets a real session that is rolled back after."""
     async with TestSessionLocal() as session:
         yield session
         await session.rollback()
 
 @pytest_asyncio.fixture()
 async def client(db_session):
-    """AsyncClient with DB dependency overridden to use test session."""
     async def override_get_db():
         yield db_session
 

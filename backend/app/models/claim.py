@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 import uuid
 import enum
 from app.core.database import Base
+from sqlalchemy.orm import relationship
 
 class ClaimStatus(str, enum.Enum):
     PENDING = "pending"
@@ -22,6 +23,7 @@ class ClaimSource(str, enum.Enum):
 class Claim(Base):
     __tablename__ = "claims"
 
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     raw_text = Column(Text, nullable=False)
     source = Column(SAEnum(ClaimSource), default=ClaimSource.MANUAL)
@@ -30,3 +32,4 @@ class Claim(Base):
     status = Column(SAEnum(ClaimStatus), default=ClaimStatus.PENDING)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    verdict = relationship("Verdict", back_populates="claim", uselist=False, lazy="selectin")

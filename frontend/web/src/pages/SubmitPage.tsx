@@ -2,8 +2,9 @@
 //  PH-FC-2028 · Submit Claim page
 //  Wires directly to POST /api/v1/claims
 // ─────────────────────────────────────────────
-import { useState } from "react";
-import { claimsApi, type ClaimCreate, type ClaimSource } from "../services/api";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { claimsApi, verdictsApi, type ClaimCreate, type ClaimSource, type ClaimStatus, type VerdictTag } from "../services/api";
+import { StatusBadge, VerdictBadge } from "../components/Badges";
 
 const SOURCES: ClaimSource[] = ["manual", "facebook", "twitter", "tiktok", "youtube", "news"];
 const LANGS = [
@@ -22,7 +23,10 @@ export default function SubmitPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ id: string; status: string } | null>(null);
+  const [claim, setClaim] = useState<any>(null);
+  const [verdict, setVerdict] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<number | null>(null); 
 
   const set = (k: keyof ClaimCreate, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -36,12 +40,38 @@ export default function SubmitPage() {
       const claim = await claimsApi.submit(form);
       setResult({ id: claim.id, status: claim.status });
       setForm({ raw_text: "", source: "manual", language: "tl", source_url: "" });
+      // Start polling
+      pollClaim(claim.id);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setSubmitting(false);
     }
-  };
+  }; 
+
+  const pollClaim = useCallback(async (id: string) => {
+    try {
+      const cl = await claimsApi.get(id);
+      setClaim(cl);
+      const v = await verdictsApi.forClaim(id);
+      setVerdict(v[0] || null);
+      if (cl.status === "done") {
+        if (pollRef.current) clearInterval(pollRef.current);
+      }
+    } catch (e) {
+      console.error("Poll error:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (result?.id) {
+      pollClaim(result.id);
+      pollRef.current = setInterval(() => pollClaim(result.id!), 3000);
+      return () => {
+        if (pollRef.current) clearInterval(pollRef.current);
+      };
+    }
+  }, [result?.id, pollClaim]);
 
   return (
     <div className="p-6 max-w-xl">
@@ -55,7 +85,7 @@ export default function SubmitPage() {
         </p>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-5"> 
         {/* Text */}
         <div>
           <label className="block text-[11px] font-mono uppercase tracking-widest text-stone-400 mb-1.5">
@@ -132,16 +162,21 @@ export default function SubmitPage() {
 
         {/* Success */}
         {result && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-xs font-mono text-green-800 mb-1">Claim submitted</p>
-            <p className="text-[11px] font-mono text-green-600">
+          <div className="bg-stone-50 border border-stone-200 rounded-lg p-4 space-y-2">
+            <p className="text-xs font-mono text-stone-600 mb-1">Tracking live...</p>
+            <StatusBadge status={claim?.status || result.status as ClaimStatus} />
+            {verdict && <VerdictBadge tag={verdict.tag} confidence={verdict.confidence} />}
+            <p className="text-[11px] font-mono text-stone-500">
               id: {result.id}
             </p>
-            <p className="text-[11px] font-mono text-green-600">
-              status: {result.status}
-            </p>
+            <button 
+              onClick={() => { if (pollRef.current) clearInterval(pollRef.current); setResult(null); setClaim(null); setVerdict(null); }}
+              className="text-xs text-stone-400 underline hover:text-stone-600"
+            >
+              Stop tracking
+            </button>
           </div>
-        )}
+        )} 
 
         {/* Error */}
         {error && (

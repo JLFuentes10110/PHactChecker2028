@@ -12,9 +12,9 @@ class VerdictRead(BaseModel):
     tag: VerdictTag
     confidence: float = Field(..., ge=0.0, le=1.0)
     explanation: Optional[str]
-    sources: Optional[str]  # Or List[str] if you prefer parsing it here
-    bias_note: Optional[str] = None # 👈 NEW: Shows source credibility analysis
-    
+    sources: Optional[str]
+    bias_note: Optional[str] = None
+
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -24,7 +24,7 @@ class ClaimCreate(BaseModel):
     raw_text: str
     source: ClaimSource
     source_url: Optional[str] = None
-    language: Literal["en", "tl"] = "en"
+    language: Literal["en", "tl", "ceb", "ilo"] = "tl"  # ✅ FIX: added ceb + ilo, default tl
 
 class ClaimRead(BaseModel):
     id: UUID
@@ -35,6 +35,6 @@ class ClaimRead(BaseModel):
     status: ClaimStatus
     created_at: datetime
     updated_at: Optional[datetime]
-    verdict: Optional[VerdictRead] = None 
+    verdict: Optional[VerdictRead] = None
 
     model_config = ConfigDict(from_attributes=True)

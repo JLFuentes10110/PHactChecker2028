@@ -1,6 +1,5 @@
 import uuid
-import os
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -10,38 +9,35 @@ from app.core.database import get_db
 from app.models.claim import Claim, ClaimStatus
 from app.schemas.claim import ClaimCreate, ClaimRead
 from app.services.claim_extractor import extract_and_verify_claim
+from app.core.database import AsyncSessionLocal
 
 router = APIRouter(prefix="/claims", tags=["Claims"])
 
 
-# ✅ CREATE CLAIM
 @router.post("/", response_model=ClaimRead, status_code=201)
 async def submit_claim(
     payload: ClaimCreate,
+    request: Request,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ):
-    new_claim = Claim(
-        **payload.model_dump(),
-        status=ClaimStatus.PENDING  # ✅ FIX: ensure "pending"
-    )
-
+    new_claim = Claim(**payload.model_dump(), status=ClaimStatus.PENDING)
     db.add(new_claim)
     await db.commit()
     await db.refresh(new_claim)
 
-    # ✅ FIX: disable background task during tests
-    if os.getenv("TESTING") != "1":
-        background_tasks.add_task(
-            extract_and_verify_claim,
-            new_claim.id,
-            new_claim.raw_text
-        )
+    background_tasks.add_task(
+        extract_and_verify_claim,
+        new_claim.id,
+        new_claim.raw_text,
+        request.app.state.tavily,  # ← was missing
+        request.app.state.groq,
+        AsyncSessionLocal    # ← was missing
+    )
 
     return new_claim
 
 
-# ✅ LIST CLAIMS
 @router.get("/", response_model=List[ClaimRead])
 async def list_claims(
     skip: int = 0,
@@ -58,7 +54,6 @@ async def list_claims(
     return result.scalars().all()
 
 
-# ✅ SEARCH CLAIMS
 @router.get("/search", response_model=List[ClaimRead])
 async def search_claims(
     q: str = Query(..., min_length=3),
@@ -73,7 +68,6 @@ async def search_claims(
     return result.scalars().all()
 
 
-# ✅ GET CLAIM BY ID (THIS WAS MISSING)
 @router.get("/{claim_id}", response_model=ClaimRead)
 async def get_claim_by_id(
     claim_id: uuid.UUID,
@@ -85,17 +79,11 @@ async def get_claim_by_id(
         .where(Claim.id == claim_id)
     )
     claim = result.scalar_one_or_none()
-
     if not claim:
-        raise HTTPException(
-            status_code=404,
-            detail="Claim not found"  # ✅ FIX: match test
-        )
-
+        raise HTTPException(status_code=404, detail="Claim not found")
     return claim
 
 
-# (Optional) KEEP your detailed endpoint
 @router.get("/{claim_id}/details", response_model=ClaimRead)
 async def get_claim_details(
     claim_id: uuid.UUID,
@@ -107,8 +95,6 @@ async def get_claim_details(
         .where(Claim.id == claim_id)
     )
     claim = result.scalar_one_or_none()
-
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
-
     return claim

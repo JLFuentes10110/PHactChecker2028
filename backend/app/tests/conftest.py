@@ -1,67 +1,57 @@
-import os
+import asyncio
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.pool import NullPool
+from sqlalchemy import text
+from app.core.database import Base, get_db
+from app.main import app
+import os
 from dotenv import load_dotenv
 
 load_dotenv(".env.test", override=True)
-os.environ["TESTING"] = "1"
-
-from app.core.database import Base, get_db
-from app.main import app
 
 TEST_DATABASE_URL = os.getenv("DATABASE_URL")
 
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+def make_engine():
+    return create_async_engine(TEST_DATABASE_URL, echo=False, pool_size=1, max_overflow=0)
 
-TestSessionLocal = async_sessionmaker(
-    test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+def pytest_configure(config):
+    async def _setup():
+        engine = make_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        await engine.dispose()
+    asyncio.run(_setup())
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_db():
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-@pytest_asyncio.fixture()
-async def db_session():
-    """
-    Each test gets its own connection with a savepoint.
-    The router can commit freely (hits the savepoint, not the real transaction).
-    After the test, everything rolls back — no bleed between tests.
-    """
-    async with test_engine.connect() as conn:
-        await conn.begin()                    # outer real transaction
-        await conn.begin_nested()             # savepoint — router commits land here
-
-        session = AsyncSession(conn, expire_on_commit=False)
-
-        async def mock_commit():
-            await conn.begin_nested()         # reset savepoint after each commit
-
-        session.commit = mock_commit          # intercept commits
-
-        yield session
-
-        await session.close()
-        await conn.rollback()                 # wipe everything after test
+def pytest_unconfigure(config):
+    async def _teardown():
+        engine = make_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        await engine.dispose()
+    asyncio.run(_teardown())
 
 @pytest_asyncio.fixture()
-async def client(db_session):
-    async def override_get_db():
-        yield db_session
+async def client():
+    # Each test gets its own engine + session — no sharing, no pool conflicts
+    engine = make_engine()
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-    app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
-    ) as ac:
-        yield ac
-    app.dependency_overrides.clear()
+    async with session_factory() as session:
+        async def override_get_db():
+            yield session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+
+        app.dependency_overrides.clear()
+
+        # Clean up data after each test
+        async with engine.begin() as conn:
+            await conn.execute(text("TRUNCATE TABLE verdicts, claims RESTART IDENTITY CASCADE"))
+
+    await engine.dispose()

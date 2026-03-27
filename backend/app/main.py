@@ -7,10 +7,13 @@ from tavily import AsyncTavilyClient
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.routers import health, claims, verdicts
+from app.routers import figures, cases
+
+# Import models so Base.metadata is fully populated before create_all
+from app.models import claim, verdict, public_figure, legal_case  # noqa: F401
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Init AI clients once, share via app.state
     app.state.groq = AsyncGroq(api_key=settings.GROQ_API_KEY)
     app.state.tavily = AsyncTavilyClient(api_key=settings.TAVILY_API_KEY)
 
@@ -43,8 +46,10 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
-app.include_router(claims.router, prefix="/api/v1")
+app.include_router(claims.router,  prefix="/api/v1")
 app.include_router(verdicts.router, prefix="/api/v1")
+app.include_router(figures.router,  prefix="/api/v1")
+app.include_router(cases.router,    prefix="/api/v1")
 
 @app.get("/")
 async def root():

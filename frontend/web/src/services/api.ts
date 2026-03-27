@@ -1,114 +1,220 @@
 // ─────────────────────────────────────────────
-//  PH-FC-2028 · API Service
-//  Maps to FastAPI routes in app/routers/
+//  PH-FC-2028 · API service layer
 // ─────────────────────────────────────────────
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const V1 = `${BASE}/api/v1`;
 
-// ── Types (mirrors Pydantic schemas) ──────────
+async function req<T>(url: string, opts?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Request failed");
+  }
+  return res.json();
+}
 
-export type ClaimSource =
-  | "twitter" | "facebook" | "youtube"
-  | "tiktok"  | "news"    | "manual";
-
-export type ClaimStatus =
-  | "pending" | "processing" | "done" | "failed";
+// ── Types ──────────────────────────────────────────────────────────────────
 
 export type VerdictTag =
   | "true" | "mostly_true" | "misleading"
   | "false" | "unverifiable" | "credit_grab";
+
+export type ClaimSource =
+  | "facebook" | "twitter" | "tiktok" | "youtube" | "news" | "manual";
+
+export type ClaimStatus = "pending" | "processing" | "done" | "failed";
+
+export type CaseType =
+  | "criminal" | "administrative" | "sandiganbayan"
+  | "comelec_disqualification" | "ombudsman" | "civil";
+
+export type CaseStatus =
+  | "filed" | "pending" | "on_trial" | "on_appeal"
+  | "dismissed" | "acquitted" | "convicted"
+  | "disqualified" | "reinstated" | "unknown";
+
+export type CourtBody =
+  | "regional_trial_court" | "metropolitan_trial_court"
+  | "sandiganbayan" | "supreme_court" | "court_of_appeals"
+  | "comelec" | "ombudsman" | "department_of_justice"
+  | "civil_service_commission" | "other";
+
+export type FigurePosition =
+  | "president" | "vice_president" | "senator" | "representative"
+  | "governor" | "mayor" | "vice_governor" | "vice_mayor"
+  | "board_member" | "councilor" | "cabinet_secretary"
+  | "undersecretary" | "bureau_director" | "appointee" | "other";
+
+export interface Verdict {
+  id: string;
+  claim_id: string;
+  tag: VerdictTag;
+  confidence: number;
+  explanation?: string;
+  sources?: string[];
+  bias_note?: string;
+  reviewed_by?: string;
+  created_at: string;
+  cited_cases?: LegalCase[];
+}
 
 export interface Claim {
   id: string;
   raw_text: string;
   source: ClaimSource;
   source_url?: string;
-  language: string;          // "tl" | "en" | "ceb" …
+  language: string;
   status: ClaimStatus;
   created_at: string;
   updated_at?: string;
+  verdict?: Verdict;
 }
 
 export interface ClaimCreate {
   raw_text: string;
-  source?: ClaimSource;
+  source: ClaimSource;
+  language: string;
   source_url?: string;
-  language?: string;
 }
 
-export interface Verdict {
+export interface LegalCaseSummary {
   id: string;
-  claim_id: string;
-  tag: VerdictTag;
-  confidence: number;        // 0.0 – 1.0
-  explanation?: string;
-  sources?: string;          // JSON string of URLs
-  reviewed_by?: string;
+  case_type: CaseType;
+  court_body: CourtBody;
+  status: CaseStatus;
+  title: string;
+  charge?: string;
+  date_filed?: string;
+}
+
+export interface PublicFigure {
+  id: string;
+  full_name: string;
+  alias?: string;
+  position: FigurePosition;
+  party?: string;
+  region?: string;
+  province?: string;
+  photo_url?: string;
+  bio?: string;
+  cases: LegalCaseSummary[];
   created_at: string;
+  updated_at?: string;
 }
 
-export interface VerdictCreate {
-  claim_id: string;
-  tag: VerdictTag;
-  confidence: number;
-  explanation?: string;
-  sources?: string[];
-  reviewed_by?: string;
+export interface PublicFigureListItem {
+  id: string;
+  full_name: string;
+  alias?: string;
+  position: FigurePosition;
+  party?: string;
+  region?: string;
+  case_count: number;
 }
 
-// ── Helpers ────────────────────────────────────
-
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail ?? `HTTP ${res.status}`);
-  }
-  return res.json() as Promise<T>;
+export interface PublicFigureCreate {
+  full_name: string;
+  alias?: string;
+  position: FigurePosition;
+  party?: string;
+  region?: string;
+  province?: string;
+  photo_url?: string;
+  bio?: string;
 }
 
-// ── Claims API ─────────────────────────────────
+export interface LegalCase {
+  id: string;
+  figure_id: string;
+  case_number?: string;
+  case_type: CaseType;
+  court_body: CourtBody;
+  status: CaseStatus;
+  title: string;
+  description?: string;
+  charge?: string;
+  penalty?: string;
+  date_filed?: string;
+  date_resolved?: string;
+  source_url?: string;
+  source_label?: string;
+  added_by?: string;
+  subject?: {
+    id: string; full_name: string; alias?: string; position: string; party?: string;
+  };
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface LegalCaseCreate {
+  figure_id: string;
+  case_number?: string;
+  case_type: CaseType;
+  court_body: CourtBody;
+  status: CaseStatus;
+  title: string;
+  description?: string;
+  charge?: string;
+  penalty?: string;
+  date_filed?: string;
+  date_resolved?: string;
+  source_url?: string;
+  source_label?: string;
+}
+
+// ── API clients ────────────────────────────────────────────────────────────
 
 export const claimsApi = {
-  /** POST /api/v1/claims */
   submit: (payload: ClaimCreate) =>
-    request<Claim>("/api/v1/claims/", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  /** GET /api/v1/claims */
-  list: (skip = 0, limit = 20) =>
-    request<Claim[]>(`/api/v1/claims/?skip=${skip}&limit=${limit}`),
-
-  /** GET /api/v1/claims/{id} */
-  get: (id: string) =>
-    request<Claim>(`/api/v1/claims/${id}`),
+    req<Claim>(`${V1}/claims/`, { method: "POST", body: JSON.stringify(payload) }),
+  list: (skip = 0, limit = 50) =>
+    req<Claim[]>(`${V1}/claims/?skip=${skip}&limit=${limit}`),
+  get: (id: string) => req<Claim>(`${V1}/claims/${id}`),
+  search: (q: string) => req<Claim[]>(`${V1}/claims/search?q=${encodeURIComponent(q)}`),
 };
-
-// ── Verdicts API ───────────────────────────────
 
 export const verdictsApi = {
-  /** POST /api/v1/verdicts */
-  create: (payload: VerdictCreate) =>
-    request<Verdict>("/api/v1/verdicts/", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  /** GET /api/v1/verdicts/claim/{claim_id} */
+  create: (payload: Partial<Verdict> & { claim_id: string; tag: VerdictTag; confidence: number }) =>
+    req<Verdict>(`${V1}/verdicts/`, { method: "POST", body: JSON.stringify(payload) }),
   forClaim: (claimId: string) =>
-    request<Verdict[]>(`/api/v1/verdicts/claim/${claimId}`),
+    req<Verdict[]>(`${V1}/verdicts/claim/${claimId}`),
 };
 
-// ── Health ─────────────────────────────────────
+export const figuresApi = {
+  create: (payload: PublicFigureCreate) =>
+    req<PublicFigure>(`${V1}/figures/`, { method: "POST", body: JSON.stringify(payload) }),
+  list: (skip = 0, limit = 50, q?: string) =>
+    req<PublicFigureListItem[]>(`${V1}/figures/?skip=${skip}&limit=${limit}${q ? `&q=${encodeURIComponent(q)}` : ""}`),
+  get: (id: string) => req<PublicFigure>(`${V1}/figures/${id}`),
+  update: (id: string, payload: Partial<PublicFigureCreate>) =>
+    req<PublicFigure>(`${V1}/figures/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  delete: (id: string) =>
+    fetch(`${V1}/figures/${id}`, { method: "DELETE" }),
+};
 
-export const healthApi = {
-  check: () => request<{ status: string }>("/health"),
+export const casesApi = {
+  create: (payload: LegalCaseCreate) =>
+    req<LegalCase>(`${V1}/cases/`, { method: "POST", body: JSON.stringify(payload) }),
+  list: (params?: { figure_id?: string; case_type?: CaseType; status?: CaseStatus; q?: string; skip?: number; limit?: number }) => {
+    const p = new URLSearchParams();
+    if (params?.figure_id) p.set("figure_id", params.figure_id);
+    if (params?.case_type) p.set("case_type", params.case_type);
+    if (params?.status)    p.set("status", params.status);
+    if (params?.q)         p.set("q", params.q);
+    if (params?.skip != null) p.set("skip", String(params.skip));
+    if (params?.limit != null) p.set("limit", String(params.limit));
+    return req<LegalCase[]>(`${V1}/cases/?${p}`);
+  },
+  get: (id: string) => req<LegalCase>(`${V1}/cases/${id}`),
+  update: (id: string, payload: Partial<LegalCaseCreate>) =>
+    req<LegalCase>(`${V1}/cases/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  delete: (id: string) => fetch(`${V1}/cases/${id}`, { method: "DELETE" }),
+  link: (verdict_id: string, case_id: string) =>
+    req(`${V1}/cases/link`, { method: "POST", body: JSON.stringify({ verdict_id, case_id }) }),
+  unlink: (verdict_id: string, case_id: string) =>
+    req(`${V1}/cases/link`, { method: "DELETE", body: JSON.stringify({ verdict_id, case_id }) }),
 };

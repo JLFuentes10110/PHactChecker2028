@@ -1,18 +1,19 @@
+import os
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import NullPool
-from app.core.database import Base, get_db
-from app.main import app
-import os
 from dotenv import load_dotenv
 
 load_dotenv(".env.test", override=True)
+os.environ["TESTING"] = "1"
+
+from app.core.database import Base, get_db
+from app.main import app
 
 TEST_DATABASE_URL = os.getenv("DATABASE_URL")
 
-# NullPool avoids connection reuse issues across async tests
 test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 
 TestSessionLocal = async_sessionmaker(
@@ -31,10 +32,26 @@ async def setup_db():
 
 @pytest_asyncio.fixture()
 async def db_session():
-    """Each test gets a real session that is rolled back after."""
-    async with TestSessionLocal() as session:
+    """
+    Each test gets its own connection with a savepoint.
+    The router can commit freely (hits the savepoint, not the real transaction).
+    After the test, everything rolls back — no bleed between tests.
+    """
+    async with test_engine.connect() as conn:
+        await conn.begin()                    # outer real transaction
+        await conn.begin_nested()             # savepoint — router commits land here
+
+        session = AsyncSession(conn, expire_on_commit=False)
+
+        async def mock_commit():
+            await conn.begin_nested()         # reset savepoint after each commit
+
+        session.commit = mock_commit          # intercept commits
+
         yield session
-        await session.rollback()
+
+        await session.close()
+        await conn.rollback()                 # wipe everything after test
 
 @pytest_asyncio.fixture()
 async def client(db_session):
@@ -48,16 +65,3 @@ async def client(db_session):
     ) as ac:
         yield ac
     app.dependency_overrides.clear()
-
-
-# A few things worth noting here:
-# - `scope="session"` on `setup_db` means tables are created once per pytest run, not per test
-# - Each test gets its own session that **rolls back** after — so tests don't bleed into each other
-# - The `dependency_overrides` swaps out the real DB for the test session cleanly
-
-
-
-# You'll also need to update `requirements.txt` — add this if it's not there:
-
-# pytest-asyncio==0.26.0  # already there ✓
-# python-dotenv==1.1.0    # already there ✓
